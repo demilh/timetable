@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Timetable">
+<meta name="theme-color" content="#16181d">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Timetable</title>
+<script>try { const t = localStorage.getItem('tt-theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch { }</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: ink header band, demo strip, then one scrolling pane (day cards or week grid that fills the screen); add button floats bottom right. */
+:root{
+  --bg:#f3f4f7;--surface:#fff;--ink:#16181d;--muted:#666b77;--line:#dcdfe6;
+  --bar:#16181d;--bar-ink:#fff;--accent:#f0b429;--accent-ink:#16181d;--danger:#c93a3a;
+  --display:"Bricolage Grotesque",ui-rounded,system-ui,sans-serif;
+  --body:"Figtree",-apple-system,system-ui,sans-serif;
+  --H:46px;
+  --gl:max(16px,env(safe-area-inset-left,0px));--gr:max(16px,env(safe-area-inset-right,0px));
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e0f12;--surface:#1a1c21;--ink:#eceef2;--muted:#9399a6;--line:#2a2d34;--bar:#1a1c21;--danger:#ff6b6b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e0f12;--surface:#1a1c21;--ink:#eceef2;--muted:#9399a6;--line:#2a2d34;--bar:#1a1c21;--danger:#ff6b6b;color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--body);display:flex;flex-direction:column;overflow:hidden;height:100dvh}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+header{background:var(--bar);color:var(--bar-ink);padding:calc(env(safe-area-inset-top,0px) + 6px) calc(var(--gr) - 8px) 6px calc(var(--gl) - 8px);display:flex;align-items:center;gap:2px;border-bottom:3px solid var(--accent)}
+header h1{flex:1;min-width:0;font:600 18px/1.2 var(--display);margin:0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header button{background:none;border:0;color:var(--bar-ink);padding:8px 9px;border-radius:8px}
+header button:active{background:#ffffff26}
+.strip{padding:6px var(--gr) 6px var(--gl);font-size:12px;color:var(--muted);letter-spacing:.02em;border-bottom:1px solid var(--line)}
+.strip b{background:var(--accent);color:var(--accent-ink);border-radius:4px;padding:1px 6px;margin-right:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+#main{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:0 var(--gr) calc(92px + env(safe-area-inset-bottom,0px)) var(--gl)}
+.whead{display:grid;position:sticky;top:0;z-index:2;background:var(--bg);border-bottom:1px solid var(--line)}
+.dh{background:none;border:0;color:var(--ink);padding:6px 0;display:flex;flex-direction:column;align-items:center}
+.dh span{font-size:12px;color:var(--muted)}
+.dh b{font:600 16px/30px var(--display);width:30px;height:30px;border-radius:50%;font-variant-numeric:tabular-nums}
+.dh.today b{background:var(--accent);color:var(--accent-ink)}
+.wbody{display:grid;padding-top:8px}
+.hours div{height:var(--H);font-size:10px;color:var(--muted);text-align:right;padding-right:4px;transform:translateY(-7px);font-variant-numeric:tabular-nums}
+.col{position:relative;height:calc(var(--hours) * var(--H));border-left:1px solid var(--line);background:repeating-linear-gradient(var(--line) 0 1px,transparent 1px var(--H))}
+.ev{position:absolute;padding:3px 4px;border-radius:5px;overflow:hidden;font-size:11px;line-height:1.2;color:var(--ink);background:hsl(var(--h) 70% 50% / .2);border:0;border-left:3px solid hsl(var(--h) 65% 45%);text-align:left;display:flex;flex-direction:column}
+.ev b{display:block;font-weight:600;word-break:break-word}
+.ev span{color:var(--muted)}
+.day{padding-top:12px;display:flex;flex-direction:column;gap:10px}
+.card{display:flex;gap:12px;background:var(--surface);color:var(--ink);border:0;border-radius:12px;padding:12px;border-left:5px solid hsl(var(--h) 65% 45%);text-align:left;width:100%}
+.time{font-weight:600;min-width:44px;font-variant-numeric:tabular-nums}
+.time small{color:var(--muted);font-weight:400;font-size:13px}
+.info{min-width:0}
+.info b{font:600 17px/1.25 var(--display)}
+.info em{margin-left:6px;font-style:normal;font-size:12px;font-weight:600;background:var(--accent);color:var(--accent-ink);padding:1px 6px;border-radius:6px;vertical-align:2px}
+.muted{color:var(--muted);font-size:13px}
+.empty{text-align:center;color:var(--muted);margin-top:28vh;line-height:1.6}
+.fab{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;line-height:1;box-shadow:0 4px 14px #0004}
+.toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px)}
+dialog{border:0;border-radius:16px;padding:18px;width:min(92vw,420px);max-height:85dvh;background:var(--surface);color:var(--ink)}
+dialog::backdrop{background:#0009}
+dialog h2{font:600 19px/1.25 var(--display);margin:0 0 8px;text-wrap:balance}
+dialog h3{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin:14px 0 6px}
+dialog p{margin:6px 0;white-space:pre-line}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:10px 0}
+.kv dt{color:var(--muted);font-size:13px;padding-top:1px}
+.kv dd{margin:0;min-width:0;white-space:pre-line}
+label{display:block;font-size:13px;color:var(--muted);margin-top:10px}
+input,textarea{display:block;width:100%;font:inherit;font-size:16px;padding:8px;margin-top:3px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+input[type=checkbox]{display:inline;width:auto;margin-right:6px}
+.row{display:flex;gap:8px}.row>label{flex:1;min-width:0}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.btns button,.menu button{flex:1;padding:12px;border-radius:10px;border:0;background:var(--bg);color:var(--ink)}
+.btns .primary{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.danger{color:var(--danger)!important}
+.menu{display:flex;flex-direction:column;gap:8px}
+.seg{display:flex;background:var(--bg);border-radius:10px;padding:3px;gap:3px}
+.menu .seg button{padding:9px;border-radius:8px;background:none}
+.menu .seg button[aria-pressed="true"]{background:var(--surface);font-weight:600;box-shadow:0 1px 3px #0003}
+.ghost{background:none;border:1px dashed var(--line);color:var(--ink);border-radius:10px;padding:10px;width:100%;margin-top:12px}
+@media (prefers-reduced-motion:no-preference){.card,.ev{transition:transform .1s}.card:active,.ev:active{transform:scale(.98)}}
+</style>
+</head>
+<body>
+<header>
+  <button id="prev" aria-label="Previous">&#8249;</button>
+  <h1 id="title"></h1>
+  <button id="next" aria-label="Next">&#8250;</button>
+  <button id="todayBtn">Today</button>
+  <button id="viewBtn"></button>
+  <button id="menuBtn" aria-label="Settings">&#8943;</button>
+</header>
+<div class="strip"><b>Demo</b>Demo University · sample timetable, not real data</div>
+<main id="main"></main>
+<button class="fab" id="addBtn" aria-label="Add class">+</button>
+<div class="toast" id="toast" hidden></div>
+
+<dialog id="detail">
+  <h2 id="dTitle"></h2>
+  <dl class="kv" id="dBody"></dl>
+  <button class="ghost" id="dRandom">Randomise details</button>
+  <div class="btns">
+    <button id="dEdit">Edit</button>
+    <button id="dDelete" class="danger">Delete</button>
+    <button id="dClose" class="primary">Close</button>
+  </div>
+</dialog>
+
+<dialog id="formDlg">
+  <form id="form">
+    <h2 id="fHead">Add class</h2>
+    <label>Module<input id="f-title" name="title" required></label>
+    <div class="row">
+      <label>Code<input id="f-code" name="code"></label>
+      <label>Type<input id="f-type" name="type" list="types"></label>
+    </div>
+    <datalist id="types"><option>Lecture</option><option>Practical</option><option>Seminar</option><option>Tutorial</option><option>Lab</option><option>Workshop</option></datalist>
+    <div class="row">
+      <label>Room<input id="f-location" name="location"></label>
+      <label>Lecturer<input id="f-lecturer" name="lecturer"></label>
+    </div>
+    <label>Date<input id="f-date" name="date" type="date" required></label>
+    <div class="row">
+      <label>Start<input id="f-start" name="start" type="time" required></label>
+      <label>End<input id="f-end" name="end" type="time" required></label>
+    </div>
+    <div id="repeatBox">
+      <label><input id="f-repeat" name="repeat" type="checkbox">Repeat every week until</label>
+      <input id="f-until" name="until" type="date">
+    </div>
+    <label>Notes<textarea id="f-notes" name="notes" rows="2"></textarea></label>
+    <button type="button" class="ghost" id="fRandom">Fill with random details</button>
+    <div class="btns">
+      <button type="button" id="fCancel">Cancel</button>
+      <button class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="menu">
+  <h2>Settings</h2>
+  <div class="menu">
+    <h3>Appearance</h3>
+    <div class="seg" role="group" aria-label="Appearance">
+      <button data-theme-opt="system">System</button>
+      <button data-theme-opt="light">Light</button>
+      <button data-theme-opt="dark">Dark</button>
+    </div>
+    <h3>Classes</h3>
+    <button id="mDemo">Generate a random week</button>
+    <button id="mClear" class="danger">Delete all classes</button>
+    <button id="mClose" style="margin-top:8px">Close</button>
+  </div>
+</dialog>
+
+<dialog id="ask">
+  <p id="askMsg"></p>
+  <div class="btns" id="askBtns"></div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const KEY = 'tt-demo';
+
+// ---- dates: stored as local "YYYY-MM-DDTHH:MM" strings, so string compare = time compare
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const stamp = d => `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const toDate = s => new Date(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10));
+const addDays = (s, n) => { const d = toDate(s); d.setDate(d.getDate() + n); return ymd(d); };
+const monday = s => addDays(s, -((toDate(s).getDay() + 6) % 7));
+const mins = s => +s.slice(11, 13) * 60 + +s.slice(14, 16);
+const hm = s => s.slice(11, 16);
+const today = () => ymd(new Date());
+const fmt = (s, o) => toDate(s).toLocaleDateString('en-GB', o);
+const byStart = (a, b) => a.start < b.start ? -1 : a.start > b.start ? 1 : 0;
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const room = l => (l || '').split(/ [-–] /).pop().trim();
+const hue = e => { let h = 0; for (const c of e.title || '') h = (h * 31 + c.charCodeAt(0)) >>> 0; return [210, 0, 140, 30, 270, 180, 330, 95][h % 8]; };
+
+// ---- random demo data (all fictional)
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+const MODULES = [['Clinical Skills', 'PHY7012'], ['Research Methods', 'SPX7101'], ['Exercise Physiology', 'SPX6204'], ['Sports Biomechanics', 'SPX6310'],
+  ['Musculoskeletal Practice', 'PHY7040'], ['Sport Psychology', 'SPX5120'], ['Applied Anatomy', 'PHY6002'], ['Rehabilitation Science', 'PHY7155']];
+const TYPES = ['Lecture', 'Practical', 'Seminar', 'Tutorial', 'Lab', 'Workshop'];
+const BUILDINGS = [['Hartley Building', 'HB'], ['Sports Centre', 'SC'], ['Science Park', 'SP'], ['Medical School', 'MS'], ['Library', 'LIB']];
+const LECTURERS = ['Dr Asha Patel', 'Prof. Jon Moreno', 'Dr Sade Okafor', 'Dr Lin Chen', 'Ms Rosa Dawson', 'Dr Marek Novak', 'Dr Ellie Hart'];
+const NOTES = ['Bring your lab coat.', 'Read chapter 4 before the session.', 'Short quiz in the last 15 minutes.', 'Wear sportswear.',
+  'Laptop needed.', 'Group presentations this week.', 'Register attendance with the QR code at the door.', ''];
+function randomDetails() {
+  const [b, c] = pick(BUILDINGS);
+  return { type: pick(TYPES), location: `${b} – ${c}.${1 + rnd(3)}${pad(1 + rnd(20))}`, lecturer: pick(LECTURERS), notes: pick(NOTES) };
+}
+function randomClass(date, startHour, hours) {
+  const [title, code] = pick(MODULES);
+  return { id: uid(), title, code, ...randomDetails(), start: `${date}T${pad(startHour)}:00`, end: `${date}T${pad(startHour + hours)}:00` };
+}
+function randomWeek(mon) {
+  const out = [];
+  for (let i = 0; i < 5; i++) {
+    let h = 9 + rnd(2);
+    for (let n = 1 + rnd(3); n > 0 && h < 17; n--) {
+      const len = 1 + rnd(2);
+      out.push(randomClass(addDays(mon, i), h, len));
+      h += len + rnd(3);
+    }
+  }
+  return out;
+}
+
+// ---- storage: this phone only; a first visit starts with a random week
+let events = [];
+const valid = e => e && typeof e.start === 'string' && typeof e.end === 'string' && e.start.length >= 16 && e.end > e.start;
+const saveLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(events)); } catch { toast('Could not save on this device.'); } };
+(() => {
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch { }
+  if (raw === null) { events = randomWeek(monday(today())); saveLocal(); return; }
+  try { events = JSON.parse(raw).filter(valid); } catch { events = []; }
+})();
+function put(list) {
+  const ids = new Set(list.map(e => e.id));
+  events = [...events.filter(e => !ids.has(e.id)), ...list.map(({ _lane, _n, ...e }) => e)]; saveLocal(); render();
+}
+function del(ids) { events = events.filter(e => !ids.includes(e.id)); saveLocal(); render(); }
+
+let view = 'day';
+try { view = localStorage.getItem('tt-demo-view') || 'day'; } catch { }
+let cur = today(), sel = null, editing = null;
+
+// ---- appearance: system / light / dark
+function applyTheme(t) {
+  if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  else { t = 'system'; delete document.documentElement.dataset.theme; }
+  document.querySelectorAll('[data-theme-opt]').forEach(b => b.setAttribute('aria-pressed', b.dataset.themeOpt === t));
+  try { localStorage.setItem('tt-theme', t); } catch { }
+}
+let theme = 'system';
+try { theme = localStorage.getItem('tt-theme') || 'system'; } catch { }
+applyTheme(theme);
+document.querySelectorAll('[data-theme-opt]').forEach(b => b.onclick = () => applyTheme(b.dataset.themeOpt));
+
+// ---- overlap lanes for the week grid: sets e._lane and e._n (lanes in its overlap cluster)
+function layout(evs) {
+  let cluster = [], lanes = [], end = '';
+  const flush = () => { cluster.forEach(e => e._n = lanes.length); cluster = []; lanes = []; };
+  for (const e of evs) {
+    if (e.start >= end) flush();
+    let i = lanes.findIndex(x => x <= e.start);
+    if (i < 0) i = lanes.push('') - 1;
+    lanes[i] = e.end; e._lane = i; cluster.push(e);
+    if (e.end > end) end = e.end;
+  }
+  flush();
+}
+
+// ---- small UI helpers
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 3000); }
+function ask(msg, options) {
+  return new Promise(res => {
+    const d = $('#ask'); $('#askMsg').textContent = msg; $('#askBtns').replaceChildren();
+    for (const [label, value, cls] of options) {
+      const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls;
+      b.onclick = () => { res(value); d.close(); }; $('#askBtns').append(b);
+    }
+    d.onclose = () => res(null); d.showModal();
+  });
+}
+
+// ---- rendering
+function render() {
+  $('#viewBtn').textContent = view === 'day' ? 'Week' : 'Day';
+  view === 'day' ? renderDay() : renderWeek();
+}
+
+function renderDay() {
+  $('#title').textContent = fmt(cur, { weekday: 'short', day: 'numeric', month: 'short' });
+  const list = events.filter(e => e.start.startsWith(cur)).sort(byStart);
+  const now = stamp(new Date()); let next = cur !== today();
+  if (!list.length) {
+    $('#main').innerHTML = '<p class="empty">No classes this day.<br>Tap + to add one, or ⋯ to generate a random week.</p>';
+    return;
+  }
+  $('#main').innerHTML = '<div class="day">' + list.map(e => {
+    let tag = '';
+    if (cur === today() && e.start <= now && now < e.end) tag = 'Now';
+    else if (!next && e.start > now) { tag = 'Next'; next = true; }
+    return `<button class="card" data-id="${esc(e.id)}" style="--h:${hue(e)}">
+      <div class="time">${hm(e.start)}<br><small>${hm(e.end)}</small></div>
+      <div class="info"><b>${esc(e.title)}</b>${tag ? `<em>${tag}</em>` : ''}
+        <div>${esc([e.type, e.code].filter(Boolean).join(' · '))}</div>
+        <div class="muted">${esc([e.location, e.lecturer].filter(Boolean).join(' · '))}</div></div></button>`;
+  }).join('') + '</div>';
+}
+
+function renderWeek() {
+  const mon = monday(cur), days = [...Array(7)].map((_, i) => addDays(mon, i));
+  const byDay = Object.fromEntries(days.map(d => [d, events.filter(e => e.start.startsWith(d)).sort(byStart)]));
+  const shown = days.filter((d, i) => i < 5 || byDay[d].length); // hide empty weekends
+  const all = shown.flatMap(d => byDay[d]);
+  const h0 = Math.min(9, ...all.map(e => Math.floor(mins(e.start) / 60)));
+  const h1 = Math.max(18, ...all.map(e => Math.ceil(mins(e.end) / 60)));
+  const cols = `grid-template-columns:34px repeat(${shown.length},minmax(0,1fr))`;
+  $('#title').textContent = fmt(mon, { day: 'numeric', month: 'short' }) + ' – ' + fmt(days[6], { day: 'numeric', month: 'short' });
+  let html = `<div class="whead" style="${cols}"><div></div>` + shown.map(d =>
+    `<button class="dh${d === today() ? ' today' : ''}" data-day="${d}"><span>${fmt(d, { weekday: 'short' })}</span><b>${toDate(d).getDate()}</b></button>`).join('') + '</div>';
+  html += `<div class="wbody" style="${cols};--hours:${h1 - h0}"><div class="hours">` +
+    [...Array(h1 - h0)].map((_, i) => `<div>${h0 + i}:00</div>`).join('') + '</div>';
+  for (const d of shown) {
+    layout(byDay[d]);
+    html += '<div class="col">' + byDay[d].map(e => {
+      const top = (mins(e.start) - h0 * 60) / 60, h = (mins(e.end) - mins(e.start)) / 60;
+      return `<button class="ev" data-id="${esc(e.id)}" style="top:calc(var(--H) * ${top});height:calc(var(--H) * ${h} - 2px);left:${e._lane / e._n * 100}%;width:calc(${100 / e._n}% - 2px);--h:${hue(e)}">
+        <b>${esc(e.title)}</b><span>${esc(room(e.location))}</span></button>`;
+    }).join('') + '</div>';
+  }
+  const m = $('#main');
+  m.innerHTML = html + '</div>';
+  // stretch the hours to fill the screen down to the + button, scroll only when they'd get cramped
+  const avail = m.clientHeight - parseFloat(getComputedStyle(m).paddingBottom) - $('.whead').offsetHeight - 8;
+  $('.wbody').style.setProperty('--H', Math.max(40, Math.floor(avail / (h1 - h0))) + 'px');
+}
+
+// ---- detail / edit
+function showDetail(e) {
+  sel = e;
+  $('#dTitle').textContent = e.title;
+  const rows = [['When', fmt(e.start, { weekday: 'long', day: 'numeric', month: 'long' }) + '\n' + hm(e.start) + '–' + hm(e.end)],
+    ['Type', e.type], ['Code', e.code], ['Room', e.location], ['Lecturer', e.lecturer], ['Notes', e.notes]];
+  $('#dBody').innerHTML = rows.filter(r => r[1]).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
+  if (!$('#detail').open) $('#detail').showModal();
+}
+
+function openForm(e) {
+  editing = e; const f = $('#form');
+  f.reset();
+  $('#fHead').textContent = e ? 'Edit class' : 'Add class';
+  $('#repeatBox').hidden = !!e;
+  for (const k of ['title', 'code', 'type', 'location', 'lecturer', 'notes']) f[k].value = e?.[k] || '';
+  f.date.value = e ? e.start.slice(0, 10) : cur;
+  f.start.value = e ? hm(e.start) : '09:00'; f.end.value = e ? hm(e.end) : '10:00';
+  $('#formDlg').showModal();
+}
+
+$('#fRandom').onclick = () => {
+  const f = $('#form'), r = randomDetails();
+  if (!f.title.value.trim()) [f.title.value, f.code.value] = pick(MODULES);
+  for (const k in r) f[k].value = r[k];
+};
+
+$('#form').onsubmit = ev => {
+  ev.preventDefault();
+  const f = Object.fromEntries(new FormData(ev.target));
+  if (f.end <= f.start) return toast('End time must be after start time.');
+  const fields = {};
+  for (const k of ['title', 'code', 'type', 'location', 'lecturer', 'notes']) fields[k] = (f[k] || '').trim();
+  let list;
+  if (editing) list = [{ ...editing, ...fields, start: f.date + 'T' + f.start, end: f.date + 'T' + f.end }];
+  else {
+    list = [];
+    const until = f.repeat && f.until > f.date ? f.until : f.date;
+    for (let d = f.date, i = 0; d <= until && i < 60; d = addDays(d, 7), i++)
+      list.push({ id: uid(), ...fields, start: d + 'T' + f.start, end: d + 'T' + f.end });
+  }
+  $('#formDlg').close();
+  cur = f.date; put(list);
+  toast(editing ? 'Class updated' : list.length > 1 ? `Added ${list.length} weekly classes` : 'Class added');
+};
+
+$('#dRandom').onclick = () => { const e = { ...sel, ...randomDetails() }; put([e]); showDetail(e); };
+$('#dEdit').onclick = () => { $('#detail').close(); openForm(sel); };
+$('#dDelete').onclick = async () => {
+  const e = sel; $('#detail').close();
+  const same = events.filter(x => x.title === e.title);
+  const opts = [['Delete this one', [e.id], 'danger']];
+  if (same.length > 1) opts.push([`Delete all ${same.length} “${e.title}”`, same.map(x => x.id), 'danger']);
+  const ids = await ask(`Delete ${e.title} on ${fmt(e.start, { weekday: 'short', day: 'numeric', month: 'short' })}?`, [...opts, ['Cancel', null]]);
+  if (ids) { del(ids); toast(ids.length > 1 ? `Deleted ${ids.length} classes` : 'Class deleted'); }
+};
+$('#dClose').onclick = () => $('#detail').close();
+$('#fCancel').onclick = () => $('#formDlg').close();
+
+// ---- settings menu
+$('#menuBtn').onclick = () => $('#menu').showModal();
+$('#mClose').onclick = () => $('#menu').close();
+$('#mDemo').onclick = async () => {
+  $('#menu').close();
+  const mon = monday(cur), sun = addDays(mon, 6);
+  const old = events.filter(e => e.start.slice(0, 10) >= mon && e.start.slice(0, 10) <= sun).map(e => e.id);
+  if (old.length && !await ask(`Replace the ${old.length} classes in this week with a random week?`, [['Replace', true, 'primary'], ['Cancel', false]])) return;
+  const week = randomWeek(mon);
+  events = events.filter(e => !old.includes(e.id)); put(week);
+  toast(`Generated ${week.length} random classes`);
+};
+$('#mClear').onclick = async () => {
+  $('#menu').close();
+  if (await ask(`Delete all ${events.length} classes?`, [['Delete all', true, 'danger'], ['Cancel', false]])) { del(events.map(e => e.id)); toast('All classes deleted'); }
+};
+
+// ---- navigation
+const step = n => { cur = addDays(cur, n * (view === 'day' ? 1 : 7)); render(); };
+$('#prev').onclick = () => step(-1);
+$('#next').onclick = () => step(1);
+$('#todayBtn').onclick = () => { cur = today(); render(); };
+$('#viewBtn').onclick = () => { view = view === 'day' ? 'week' : 'day'; try { localStorage.setItem('tt-demo-view', view); } catch { } render(); };
+$('#addBtn').onclick = () => openForm(null);
+$('#main').onclick = ev => {
+  const c = ev.target.closest('[data-id]');
+  if (c) { const e = events.find(x => x.id === c.dataset.id); if (e) showDetail(e); return; }
+  const d = ev.target.closest('[data-day]'); if (d) { cur = d.dataset.day; view = 'day'; render(); }
+};
+let tx, ty;
+$('#main').addEventListener('touchstart', e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+$('#main').addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
+}, { passive: true });
+document.addEventListener('visibilitychange', () => document.hidden || render()); // refresh Now/Next on reopen
+addEventListener('resize', render);
+setInterval(render, 60000);
+
+render();
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+
+// ---- self-check: open the page with #test and look at the console
+if (location.hash === '#test') {
+  const L = [['09:00', '10:00'], ['09:30', '10:30'], ['11:00', '12:00']].map(([s, t]) => ({ start: '2026-10-29T' + s, end: '2026-10-29T' + t }));
+  layout(L);
+  console.assert(L[0]._lane === 0 && L[1]._lane === 1 && L[0]._n === 2 && L[2]._lane === 0 && L[2]._n === 1, 'layout', L);
+  console.assert(monday('2026-11-01') === '2026-10-26' && addDays('2026-10-31', 1) === '2026-11-01', 'dates');
+  const w = randomWeek('2026-10-26');
+  console.assert(w.every(valid) && w.every(e => e.end.slice(11) <= '20:00'), 'random week', w);
+  console.log('self-check done');
+}
+</script>
+</body>
+</html>
