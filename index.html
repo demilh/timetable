@@ -96,7 +96,9 @@ input[type=checkbox]{display:inline;width:auto;margin-right:6px}
 .seg{display:flex;background:var(--bg);border-radius:8px;padding:3px;gap:3px}
 .seg button{flex:1;background:none;border:0;border-radius:6px;padding:9px}
 .seg button[aria-pressed="true"]{background:var(--card);font-weight:600;box-shadow:0 1px 3px #0003}
-.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px);z-index:30}
+.hd h2:focus{outline:none}
+.toast{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#55585e;color:#fff;padding:10px 14px;border-radius:8px;font-size:14px;max-width:calc(100% - 32px);z-index:30;opacity:0;pointer-events:none;transition:opacity 1.2s ease}
+.toast.show{opacity:.7;transition-duration:.2s}
 </style>
 </head>
 <body>
@@ -136,7 +138,7 @@ input[type=checkbox]{display:inline;width:auto;margin-right:6px}
   <button class="tab" data-tab="Calendar"><svg width="27" height="27" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 5v11h16V9z"/><rect x="6.5" y="1.5" width="2.2" height="4.5" rx="1"/><rect x="15.3" y="1.5" width="2.2" height="4.5" rx="1"/><path d="M5.5 10.5h3v2.5h-3zm5 0h3v2.5h-3zm5 0h3v2.5h-3zm-10 4h3V17h-3zm5 0h3V17h-3zm5 0h3V17h-3z"/></svg><span>Calendar</span></button>
   <button class="tab" data-tab="More"><svg width="27" height="27" viewBox="0 0 24 24" fill="currentColor"><circle cx="4.5" cy="12" r="2.6"/><circle cx="12" cy="12" r="2.6"/><circle cx="19.5" cy="12" r="2.6"/></svg><span>More</span></button>
 </nav>
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" role="status"></div>
 
 <dialog class="sheet" id="detail">
   <div class="hd"><h2 id="dTitle"></h2><button class="go" id="dGo">Go to Event <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg></button></div>
@@ -146,7 +148,7 @@ input[type=checkbox]{display:inline;width:auto;margin-right:6px}
 
 <dialog class="sheet" id="formDlg">
   <form id="form">
-    <div class="hd"><h2 id="fHead">Add event</h2></div>
+    <div class="hd"><h2 id="fHead" tabindex="-1" autofocus>Add event</h2></div>
     <div class="bd">
       <label style="margin-top:0">Title<input id="f-title" name="title" required></label>
       <div class="row">
@@ -317,7 +319,7 @@ function layout(evs) {
 
 // ---- small UI helpers
 let toastTimer;
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 2500); }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2500); }
 function ask(msg, options) {
   return new Promise(res => {
     const d = $('#ask'); $('#askMsg').textContent = msg; $('#askBtns').replaceChildren();
