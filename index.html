@@ -466,7 +466,13 @@ document.addEventListener('visibilitychange', () => document.hidden || render())
 setInterval(render, 60000);
 
 render(true);
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  const hadWorker = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => r.update()).catch(() => { });
+  // a new version took over: reload once so it shows straight away
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hadWorker) location.reload(); });
+  document.addEventListener('visibilitychange', () => document.hidden || navigator.serviceWorker.getRegistration().then(r => r?.update()));
+}
 
 // ---- self-check: open the page with #test and look at the console
 if (location.hash === '#test') {
