@@ -23,8 +23,9 @@
 :root[data-theme="dark"]{--bg:#17181b;--grid:#111215;--line:#2c2f34;--ink:#ececee;--muted:#9a9ea6;--ev:#202227;--ev-line:#383b41;--bar:#4a8ff0;--card:#1e2024;--btn:#fff;--btn-ink:#000;--danger:#ff6b6b;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-html,body{margin:0;height:100%}
-body{height:100dvh;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:var(--ink);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+html,body{margin:0;height:100%;overflow:hidden}
+html{background:var(--top)}
+body{height:var(--app-h,100dvh);display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:var(--ink);font:15px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,[role=button]:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--bar);outline-offset:1px}
 svg{display:block}
@@ -198,6 +199,17 @@ input[type=checkbox]{display:inline;width:auto;margin-right:6px}
 <script>
 const $ = s => document.querySelector(s);
 const KEY = 'tt-uob', H = 45, PAD = 9;
+
+// iOS home-screen apps report a viewport shorter than the screen (by the status bar), leaving a strip at the bottom;
+// there the app owns the whole screen, so size it to the screen instead
+function fitHeight() {
+  const portrait = matchMedia('(orientation: portrait)').matches;
+  const h = navigator.standalone ? Math.max(innerHeight, portrait ? screen.height : screen.width) : 0;
+  document.documentElement.style.setProperty('--app-h', h ? h + 'px' : '100dvh');
+}
+fitHeight();
+addEventListener('resize', fitHeight);
+addEventListener('orientationchange', () => setTimeout(fitHeight, 300));
 
 // ---- dates: stored as local "YYYY-MM-DDTHH:MM" strings, so string compare = time compare
 const pad = n => String(n).padStart(2, '0');
@@ -438,10 +450,10 @@ document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => {
   try { localStorage.setItem('tt-uob-view', view); } catch { }
   render(true);
 });
-$('#bell').onclick = () => toast('No new notifications');
-$('#search').onclick = () => toast('Search isn’t available yet');
+$('#bell').onclick = () => toast('FETCHING: error');
+$('#search').onclick = () => toast('FETCHING: error');
 document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () =>
-  b.dataset.tab === 'Calendar' ? (cur = today(), render(true)) : toast(`${b.dataset.tab} isn’t available yet`));
+  b.dataset.tab === 'Calendar' ? (cur = today(), render(true)) : toast('FETCHING: error'));
 
 // ---- navigation
 const step = n => { cur = addDays(cur, n * (view === 'day' ? 1 : 7)); render(); };
