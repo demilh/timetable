@@ -281,6 +281,40 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(events)); } 
   if (raw === null) { events = randomTerm(); save(); return; }
   try { events = JSON.parse(raw).filter(valid); } catch { events = []; }
 })();
+// fixed weekly classes from 23 Nov to the end of term; written once over whatever random classes were in those weeks
+const FIXED = {
+  key: 'tt-uob-fixed-2026-11-23', from: '2026-11-23', weeks: 4, week: [
+    [0, '09:00', '11:00', 2, 'Lecture', 1, 'Sport and Exercise Sciences - SPTX-LT1'],
+    [0, '12:00', '13:00', 0, 'Seminar', 3, 'Teaching and Learning Centre - TLC-S2'],
+    [0, '14:00', '17:00', 4, 'Practical', 2, 'Sport and Exercise Sciences - SPTX-G1', 'Please bring appropriate clothing.'],
+    [1, '09:00', '10:00', 1, 'Seminar', 2, 'Arts Building - ARTS-S3'],
+    [1, '11:00', '13:00', 6, 'Lecture', 1, 'Medical School - MDSC-LT2'],
+    [1, '15:00', '18:00', 6, 'Practical', 4, 'Medical School - MDSC-G2 / Biosciences Building - BIOS-WL1'],
+    [2, '10:00', '12:00', 3, 'Practical', 3, 'Sport and Exercise Sciences - SPTX-WL2', 'Please bring appropriate clothing.'],
+    [2, '13:00', '14:00', 5, 'Lecture', 1, 'Arts Building - ARTS-LT1'],
+    [2, '15:00', '17:00', 7, 'Seminar', 2, 'Teaching and Learning Centre - TLC-S4', 'Pre-reading available on the module page.'],
+    [3, '09:00', '12:00', 2, 'Practical', 1, 'Sport and Exercise Sciences - SPTX-WL1', 'Please bring appropriate clothing.'],
+    [3, '13:00', '15:00', 0, 'Lecture', 1, 'Medical School - MDSC-LT1'],
+    [3, '16:00', '17:00', 3, 'Seminar', 3, 'Teaching and Learning Centre - TLC-S1'],
+    [4, '10:00', '12:00', 7, 'Lecture', 1, 'Biosciences Building - BIOS-LT3'],
+    [4, '13:00', '14:00', 4, 'Seminar', 2, 'Arts Building - ARTS-S2', 'Laptops required.'],
+    [4, '15:00', '17:00', 1, 'Practical', 4, 'Sport and Exercise Sciences - SPTX-G3'],
+  ]
+};
+function fixedTerm() {
+  const out = [];
+  for (let w = 0; w < FIXED.weeks; w++) for (const [day, s, e, m, type, gp, location, notes = ''] of FIXED.week) {
+    const d = addDays(FIXED.from, 7 * w + day), [id, name, code] = MODULES[m];
+    out.push({ id: uid(), title: `${id} - ${name}(${code})/${type} Gp${gp}`, type, location, notes, start: `${d}T${s}`, end: `${d}T${e}`, synced: stamp(new Date()) });
+  }
+  return out;
+}
+(() => {
+  try { if (localStorage.getItem(FIXED.key)) return; } catch { return; }
+  const end = addDays(FIXED.from, 7 * FIXED.weeks);
+  events = [...events.filter(e => e.start < FIXED.from || e.start >= end), ...fixedTerm()]; save();
+  try { localStorage.setItem(FIXED.key, '1'); } catch { }
+})();
 function put(list) {
   const ids = new Set(list.map(e => e.id));
   events = [...events.filter(e => !ids.has(e.id)), ...list.map(({ _lane, _n, ...e }) => e)]; save(); render();
@@ -499,6 +533,8 @@ if (location.hash === '#test') {
   console.assert(duration({ start: '2026-10-29T09:00', end: '2026-10-29T11:00' }) === '2 hours' && duration({ start: '2026-10-29T09:00', end: '2026-10-29T10:30' }) === '1 hour 30 minutes', 'duration');
   console.assert(longDate('2026-10-29T09:00') === 'Thursday, 29 October 2026 09:00', 'long date', longDate('2026-10-29T09:00'));
   console.assert(randomTerm().every(valid), 'random term');
+  const ft = fixedTerm();
+  console.assert(ft.length === 60 && ft.every(valid) && ft[0].start === '2026-11-23T09:00' && ft.at(-1).start === '2026-12-18T15:00', 'fixed term');
   console.log('self-check done');
 }
 </script>
